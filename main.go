@@ -1,37 +1,52 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"time"
+
+	"github.com/ArshpreetS/Golang_microservice/handlers"
 )
 
 func main() {
-	// reqeusts to the path /goodbye with be handled by this function
-	http.HandleFunc("/goodbye", func(http.ResponseWriter, *http.Request) {
-		log.Println("Goodbye World")
-	})
 
-	// any other request will be handled by this function
-	http.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
-		log.Println("Running Hello Handler")
+	l := log.New(os.Stdout, "product-api", log.LstdFlags)
+	helloHandler := handlers.NewHello(l)
 
-		// read the body
-		b, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			log.Println("Error reading body", err)
-			http.Error(rw, "Unable to read request body", http.StatusBadRequest)
-			return
-		}
+	goodbyeHandler := handlers.NewGoodBye(l)
 
-		// write the response
-		fmt.Fprintf(rw, "Hello %s\n", b)
-	})
+	sm := http.NewServeMux()
+	sm.Handle("/", helloHandler)
+	sm.Handle("/goodbye", goodbyeHandler)
+
+	s := http.Server{
+		Addr:         ":9090",
+		Handler:      sm,
+		IdleTimeout:  120 * time.Second,
+		ReadTimeout:  1 * time.Second,
+		WriteTimeout: 1 * time.Second,
+	}
 
 	// Listen for connections on all ip addresses (0.0.0.0)
 	// port 9090
 	log.Println("Starting Server")
-	err := http.ListenAndServe(":9090", nil)
-	log.Fatal(err)
+	go func() {
+		err := s.ListenAndServe()
+		if err != nil {
+			l.Fatal(err)
+		}
+	}()
+
+	sigChan := make(chan os.Signal)
+	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Kill)
+
+	sig := <-sigChan
+	l.Println("Received terminate, graceful shutdown", sig)
+
+	tc, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	s.Shutdown(tc)
 }
