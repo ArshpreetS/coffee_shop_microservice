@@ -23,7 +23,7 @@ func main() {
 	sm := http.NewServeMux()
 	sm.Handle("/", helloHandler)
 	sm.Handle("/goodbye", goodbyeHandler)
-	sm.Handle("/products", productsHandler)
+	sm.Handle("/products/", productsHandler)
 
 	s := http.Server{
 		Addr:         ":9090",
