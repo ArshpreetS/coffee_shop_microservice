@@ -7,23 +7,35 @@ import (
 	"os"
 	"os/signal"
 	"time"
-
 	"github.com/ArshpreetS/Golang_microservice/handlers"
+	"github.com/gorilla/mux"
 )
 
 func main() {
 
 	l := log.New(os.Stdout, "product-api", log.LstdFlags)
-	helloHandler := handlers.NewHello(l)
+	// helloHandler := handlers.NewHello(l)
 
-	goodbyeHandler := handlers.NewGoodBye(l)
+	// goodbyeHandler := handlers.NewGoodBye(l)
 
 	productsHandler := handlers.NewProducts(l)
 
-	sm := http.NewServeMux()
-	sm.Handle("/", helloHandler)
-	sm.Handle("/goodbye", goodbyeHandler)
-	sm.Handle("/products/", productsHandler)
+	sm := mux.NewRouter()
+
+	getRouter := sm.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/", productsHandler.GetProducts)
+	// getRouter.HandleFunc("/goodbye", goodbyeHandler.ServeHTTP)
+
+	putRouter := sm.Methods(http.MethodPut).Subrouter()
+	putRouter.HandleFunc("/{id:[0-9]+}", productsHandler.UpdateProducts)
+	putRouter.Use(productsHandler.MiddlewareProductValidation)
+
+	postRouter := sm.Methods(http.MethodPost).Subrouter()
+	postRouter.HandleFunc("/", productsHandler.AddProduct)
+	postRouter.Use(productsHandler.MiddlewareProductValidation)
+	// sm.Handle("/", helloHandler)
+	// sm.Handle("/goodbye", goodbyeHandler)
+	// sm.Handle("/products", productsHandler)
 
 	s := http.Server{
 		Addr:         ":9090",
